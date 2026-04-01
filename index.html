@@ -1337,7 +1337,8 @@ async function generateThesis() {
   }, 1200);
 
   // ↓ Point this at your Railway backend URL
-  const API_URL = 'km-thesis-generator-production.up.railway.app';
+  const API_URL = 'https://km-thesis-generator-production.up.railway.app/generate-thesis';
+
 
   try {
     const response = await fetch(API_URL, {
