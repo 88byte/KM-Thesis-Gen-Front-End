@@ -609,6 +609,95 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
   .rpt-toc { page-break-after: always; }
   .rpt-section { page-break-inside: avoid; }
 }
+
+/* ─ ROADMAP PHASE ─ */
+.rpt-phase {
+  background: var(--r-paper);
+  border: 1px solid var(--r-rule);
+  margin-bottom: 24px;
+  page-break-inside: avoid;
+}
+.rpt-phase-header {
+  background: #F0E8D5;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--r-rule);
+}
+.rpt-phase-letter {
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--r-gold);
+  line-height: 1;
+  min-width: 28px;
+}
+.rpt-phase-meta {}
+.rpt-phase-days {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #A09070;
+  font-weight: 700;
+}
+.rpt-phase-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--r-ink);
+  letter-spacing: 0.05em;
+}
+.rpt-phase-objective {
+  padding: 14px 24px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(15px, 1.6vw, 17px);
+  font-style: italic;
+  color: var(--r-ink2);
+  border-bottom: 1px solid var(--r-rule);
+  line-height: 1.6;
+}
+.rpt-phase table { margin: 0; }
+.rpt-phase .rpt-table th { border-radius: 0; }
+
+/* ─ SCRIPT BOX ─ */
+.rpt-script {
+  margin-bottom: 28px;
+  border: 1px solid var(--r-rule);
+  page-break-inside: avoid;
+}
+.rpt-script-label {
+  background: #F0E8D5;
+  padding: 12px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--r-gold);
+  font-weight: 700;
+  border-bottom: 1px solid var(--r-rule);
+}
+.rpt-script-subject {
+  padding: 10px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--r-ink2);
+  border-bottom: 1px solid var(--r-rule);
+  background: #FAFAF5;
+}
+.rpt-script-subject span { color: var(--r-gold); }
+.rpt-script-body {
+  padding: 20px 24px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(16px, 1.7vw, 18px);
+  line-height: 1.8;
+  color: var(--r-ink);
+  white-space: pre-wrap;
+  background: var(--r-paper);
+}
+
 </style>
 </head>
 <body>
@@ -837,43 +926,39 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
 <!-- ════════ REPORT ════════ -->
 <div id="report-screen">
   <div class="report-root">
-
     <!-- COVER -->
     <div class="rpt-cover">
       <div class="rpt-cover-watermark">F.U.E.L.</div>
       <div class="rpt-cover-eyebrow">Elite Wealth Club · Carlsbad · <span id="rpt-date"></span></div>
-      <div class="rpt-cover-name" id="rpt-cover-name">
-        <span id="rpt-name-span">Acquisition Investment Thesis</span>
-      </div>
+      <div class="rpt-cover-name" id="rpt-cover-name"><span>100-Day Acquisition Roadmap</span></div>
       <div class="rpt-cover-sub" id="rpt-cover-sub"></div>
       <div class="rpt-cover-metrics" id="rpt-cover-metrics"></div>
       <div class="rpt-cover-fuel">F · Find &nbsp;&nbsp; U · Underwrite &nbsp;&nbsp; E · Elevate &nbsp;&nbsp; L · Legacy</div>
     </div>
-
-    <!-- TABLE OF CONTENTS -->
+    <!-- TOC -->
     <div class="rpt-toc">
       <div class="rpt-toc-title">Table of Contents</div>
       <ul class="rpt-toc-list">
-        <li class="rpt-toc-item" onclick="scrollToSection('s-overview')"><span class="rpt-toc-num">01</span><span class="rpt-toc-label">Thesis Overview</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-criteria')"><span class="rpt-toc-num">02</span><span class="rpt-toc-label">Acquisition Criteria</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-edge')"><span class="rpt-toc-num">03</span><span class="rpt-toc-label">Your Strategic Edge</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-income')"><span class="rpt-toc-num">04</span><span class="rpt-toc-label">Income Projection Model</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-categories')"><span class="rpt-toc-num">05</span><span class="rpt-toc-label">Ranked Target Categories</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-fuel')"><span class="rpt-toc-num">06</span><span class="rpt-toc-label">The F.U.E.L. Playbook</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
-        <li class="rpt-toc-item" onclick="scrollToSection('s-moves')"><span class="rpt-toc-num">07</span><span class="rpt-toc-label">Your Next Moves</span><span class="rpt-toc-dots"></span><span class="rpt-toc-page">—</span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-overview')"><span class="rpt-toc-num">01</span><span class="rpt-toc-label">Thesis Overview</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-criteria')"><span class="rpt-toc-num">02</span><span class="rpt-toc-label">Acquisition Criteria</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-edge')"><span class="rpt-toc-num">03</span><span class="rpt-toc-label">Your Unfair Advantages</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-verticals')"><span class="rpt-toc-num">04</span><span class="rpt-toc-label">Target Verticals — Ranked</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-roadmap')"><span class="rpt-toc-num">05</span><span class="rpt-toc-label">100-Day Roadmap</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-scripts')"><span class="rpt-toc-num">06</span><span class="rpt-toc-label">Outreach Scripts & Templates</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-deal')"><span class="rpt-toc-num">07</span><span class="rpt-toc-label">Deal Structure Framework</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-valuation')"><span class="rpt-toc-num">08</span><span class="rpt-toc-label">Valuation & Income Model</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-levers')"><span class="rpt-toc-num">09</span><span class="rpt-toc-label">Value Creation Levers</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-sba')"><span class="rpt-toc-num">10</span><span class="rpt-toc-label">SBA 7(a) Financing Path</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-milestones')"><span class="rpt-toc-num">11</span><span class="rpt-toc-label">Key Milestones</span><span class="rpt-toc-dots"></span></li>
+        <li class="rpt-toc-item" onclick="scrollToSection('s-nextsteps')"><span class="rpt-toc-num">12</span><span class="rpt-toc-label">Immediate Next Steps</span><span class="rpt-toc-dots"></span></li>
       </ul>
     </div>
-
     <!-- BODY -->
     <div class="rpt-body">
-
-      <!-- 01 OVERVIEW -->
       <div class="rpt-section" id="s-overview">
         <div class="rpt-section-header"><span class="rpt-section-num">01</span><span class="rpt-section-title">Thesis Overview</span></div>
         <div class="rpt-prose" id="rpt-overview"></div>
       </div>
-
-      <!-- 02 CRITERIA -->
       <div class="rpt-section" id="s-criteria">
         <div class="rpt-section-header"><span class="rpt-section-num">02</span><span class="rpt-section-title">Acquisition Criteria</span></div>
         <div class="rpt-prose" style="margin-bottom:16px"><p>Every deal must pass Kyle's buy box before an LOI is submitted. These are the non-negotiables.</p></div>
@@ -886,46 +971,49 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
           <div class="rpt-criteria-cell"><span class="rpt-criteria-val">Ages 58–70</span><div class="rpt-criteria-lbl">Seller Profile</div></div>
         </div>
       </div>
-
-      <!-- 03 EDGE -->
       <div class="rpt-section" id="s-edge">
-        <div class="rpt-section-header"><span class="rpt-section-num">03</span><span class="rpt-section-title">Your Strategic Edge</span></div>
+        <div class="rpt-section-header"><span class="rpt-section-num">03</span><span class="rpt-section-title">Your Unfair Advantages</span></div>
         <div class="rpt-edge-grid" id="rpt-edge"></div>
       </div>
-
-      <!-- 04 INCOME -->
-      <div class="rpt-section" id="s-income">
-        <div class="rpt-section-header"><span class="rpt-section-num">04</span><span class="rpt-section-title">Income Projection Model</span></div>
-        <table class="rpt-table" id="rpt-income-table">
-          <thead><tr><th>Metric</th><th>Projected Range</th></tr></thead>
-          <tbody id="rpt-income-body"></tbody>
-        </table>
+      <div class="rpt-section" id="s-verticals">
+        <div class="rpt-section-header"><span class="rpt-section-num">04</span><span class="rpt-section-title">Target Verticals — Ranked by Fit</span></div>
+        <table class="rpt-table"><thead><tr><th>Rank</th><th>Vertical</th><th>Margin</th><th>Why It Fits</th></tr></thead><tbody id="rpt-verticals"></tbody></table>
       </div>
-
-      <!-- 05 CATEGORIES -->
-      <div class="rpt-section" id="s-categories">
-        <div class="rpt-section-header"><span class="rpt-section-num">05</span><span class="rpt-section-title">Ranked Target Categories</span></div>
-        <div id="rpt-categories"></div>
+      <div class="rpt-section" id="s-roadmap">
+        <div class="rpt-section-header"><span class="rpt-section-num">05</span><span class="rpt-section-title">100-Day Acquisition Roadmap</span></div>
+        <div id="rpt-roadmap"></div>
       </div>
-
-      <!-- 06 FUEL -->
-      <div class="rpt-section" id="s-fuel">
-        <div class="rpt-section-header"><span class="rpt-section-num">06</span><span class="rpt-section-title">The F.U.E.L. Playbook</span></div>
-        <div id="rpt-fuel"></div>
+      <div class="rpt-section" id="s-scripts">
+        <div class="rpt-section-header"><span class="rpt-section-num">06</span><span class="rpt-section-title">Outreach Scripts &amp; Templates</span></div>
+        <div id="rpt-scripts"></div>
       </div>
-
-      <!-- 07 NEXT MOVES -->
-      <div class="rpt-section" id="s-moves">
-        <div class="rpt-section-header"><span class="rpt-section-num">07</span><span class="rpt-section-title">Your Next Moves</span></div>
-        <div class="rpt-moves" id="rpt-moves"></div>
+      <div class="rpt-section" id="s-deal">
+        <div class="rpt-section-header"><span class="rpt-section-num">07</span><span class="rpt-section-title">Deal Structure Framework</span></div>
+        <table class="rpt-table"><thead><tr><th>Component</th><th>Target</th><th>Purpose</th></tr></thead><tbody id="rpt-deal"></tbody></table>
       </div>
-
-      <!-- CLOSING -->
+      <div class="rpt-section" id="s-valuation">
+        <div class="rpt-section-header"><span class="rpt-section-num">08</span><span class="rpt-section-title">Valuation &amp; Income Model</span></div>
+        <table class="rpt-table"><thead><tr><th>Revenue</th><th>EBITDA (20%)</th><th>EBITDA (25%)</th><th>Purchase @ 3x</th><th>Purchase @ 5x</th></tr></thead><tbody id="rpt-valuation"></tbody></table>
+      </div>
+      <div class="rpt-section" id="s-levers">
+        <div class="rpt-section-header"><span class="rpt-section-num">09</span><span class="rpt-section-title">Post-Acquisition Value Creation</span></div>
+        <div class="rpt-edge-grid" id="rpt-levers"></div>
+      </div>
+      <div class="rpt-section" id="s-sba">
+        <div class="rpt-section-header"><span class="rpt-section-num">10</span><span class="rpt-section-title">SBA 7(a) Financing Path</span></div>
+        <div class="rpt-prose" style="margin-bottom:16px"><p>Most acquisitions in the $1–5M range qualify for SBA 7(a) with 10–20% down. Seller carry (5–15%) can further reduce equity required to close.</p></div>
+        <table class="rpt-table"><thead><tr><th>Deal Size</th><th>Down Payment (10%)</th><th>Seller Note (10%)</th><th>SBA Loan (80%)</th></tr></thead><tbody id="rpt-sba"></tbody></table>
+      </div>
+      <div class="rpt-section" id="s-milestones">
+        <div class="rpt-section-header"><span class="rpt-section-num">11</span><span class="rpt-section-title">Key Milestones &amp; Success Metrics</span></div>
+        <table class="rpt-table"><thead><tr><th>Day</th><th>Milestone</th></tr></thead><tbody id="rpt-milestones"></tbody></table>
+      </div>
+      <div class="rpt-section" id="s-nextsteps">
+        <div class="rpt-section-header"><span class="rpt-section-num">12</span><span class="rpt-section-title">Immediate Next Steps</span></div>
+        <table class="rpt-table"><thead><tr><th>Timeframe</th><th>Action</th></tr></thead><tbody id="rpt-nextsteps"></tbody></table>
+      </div>
       <div class="rpt-closing" id="rpt-closing"></div>
-
-    </div><!-- /rpt-body -->
-
-    <!-- FOOTER -->
+    </div>
     <div class="rpt-footer">
       <div>
         <div class="rpt-footer-brand">Kyle Mallien · kylemallien.com</div>
@@ -936,9 +1024,8 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
         <button class="btn btn-primary" onclick="startOver()">New Thesis</button>
       </div>
     </div>
-
-  </div><!-- /report-root -->
-</div><!-- /report-screen -->
+  </div>
+</div>
 
 <script>
 let currentStep = 1;
@@ -1086,7 +1173,7 @@ function renderReport(profile, t) {
 
   // Cover
   document.getElementById('rpt-date').textContent = today;
-  document.getElementById('rpt-cover-name').innerHTML = `${profile.name}'s<br><span id="rpt-name-span">Acquisition Investment Thesis</span>`;
+  document.getElementById('rpt-cover-name').innerHTML = `${profile.name}'s<br><span>100-Day Acquisition Roadmap</span>`;
   document.getElementById('rpt-cover-sub').textContent = `${profile.profession} · ${profile.location} · 2025–2026`;
   document.getElementById('rpt-cover-metrics').innerHTML = `
     <div class="rpt-metric-box"><span class="rpt-metric-val">${t.metrics.revenue}</span><div class="rpt-metric-lbl">Target Revenue</div></div>
@@ -1094,68 +1181,83 @@ function renderReport(profile, t) {
     <div class="rpt-metric-box"><span class="rpt-metric-val">${t.metrics.income}</span><div class="rpt-metric-lbl">Income Goal</div></div>
     <div class="rpt-metric-box"><span class="rpt-metric-val">${t.metrics.timeline}</span><div class="rpt-metric-lbl">Timeline</div></div>`;
 
-  // Overview
-  document.getElementById('rpt-overview').innerHTML = t.thesis_overview;
+  // 01 Overview
+  document.getElementById('rpt-overview').innerHTML = t.thesis_overview || '';
 
-  // Edge
-  document.getElementById('rpt-edge').innerHTML = t.strategic_edge.map(e => `
+  // 03 Advantages
+  document.getElementById('rpt-edge').innerHTML = (t.unfair_advantages||[]).map(a => `
     <div class="rpt-edge-card">
-      <div class="rpt-edge-title">${e.title}</div>
-      <div class="rpt-edge-body">${e.body}</div>
+      <div class="rpt-edge-title">${a.title}</div>
+      <div class="rpt-edge-body">${a.body}</div>
     </div>`).join('');
 
-  // Income table
-  const ip = t.income_projection;
-  document.getElementById('rpt-income-body').innerHTML = `
-    <tr><td>Acquisition Revenue Range</td><td>${ip.revenue_range}</td></tr>
-    <tr><td>Operating Margin at Acquisition</td><td>${ip.operating_margin}</td></tr>
-    <tr><td>Owner Income (Base, Pre-Growth)</td><td>${ip.base_income}</td></tr>
-    <tr><td>Growth Upside (Year 2–3)</td><td>${ip.growth_upside}</td></tr>
-    <tr><td><strong>Total Potential Stabilized Income</strong></td><td><strong>${ip.total_potential}</strong></td></tr>`;
+  // 04 Verticals table
+  document.getElementById('rpt-verticals').innerHTML = (t.target_verticals||[]).map(v => `
+    <tr><td style="font-family:'Cinzel',serif;color:var(--r-gold);font-weight:600">#${v.rank}</td><td><strong>${v.vertical}</strong></td><td>${v.margin}</td><td>${v.why}</td></tr>`).join('');
 
-  // Categories
-  document.getElementById('rpt-categories').innerHTML = t.target_categories.map(c => `
-    <div class="rpt-cat">
-      <div class="rpt-cat-header">
-        <div class="rpt-cat-rank">#${c.rank}</div>
-        <div class="rpt-cat-name">${c.name}</div>
-        <div class="rpt-cat-pills">
-          <div class="rpt-cat-pill">${c.margin} margins</div>
-          ${c.schedule && c.schedule !== 'N/A' ? `<div class="rpt-cat-pill">${c.schedule}</div>` : ''}
+  // 05 Roadmap
+  const phaseConfig = [
+    { key: 'days_1_30', letter: 'F', days: 'Days 1–30', name: 'FIND — Build Your Pipeline' },
+    { key: 'days_31_70', letter: 'U', days: 'Days 31–70', name: 'UNDERWRITE — Qualify, Discover & Structure' },
+    { key: 'days_71_100', letter: 'E+L', days: 'Days 71–100', name: 'ELEVATE & LEGACY — Close, Integrate & Build Wealth' }
+  ];
+  document.getElementById('rpt-roadmap').innerHTML = phaseConfig.map(p => {
+    const phase = (t.roadmap||{})[p.key];
+    if (!phase) return '';
+    return `<div class="rpt-phase">
+      <div class="rpt-phase-header">
+        <div class="rpt-phase-letter">${p.letter}</div>
+        <div class="rpt-phase-meta">
+          <div class="rpt-phase-days">${p.days}</div>
+          <div class="rpt-phase-name">${p.name}</div>
         </div>
       </div>
-      <div class="rpt-cat-body">${c.why}</div>
+      <div class="rpt-phase-objective">${phase.objective}</div>
+      <table class="rpt-table"><thead><tr><th style="width:130px">Days</th><th>Action</th></tr></thead><tbody>
+        ${(phase.actions||[]).map(a => `<tr><td style="white-space:nowrap;font-weight:600;color:var(--r-gold)">${a.days}</td><td>${a.action}</td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  }).join('');
+
+  // 06 Scripts
+  document.getElementById('rpt-scripts').innerHTML = Object.values(t.scripts||{}).map(s => `
+    <div class="rpt-script">
+      <div class="rpt-script-label">${s.label}</div>
+      ${s.subject ? `<div class="rpt-script-subject"><span>Subject:</span> ${s.subject}</div>` : ''}
+      <div class="rpt-script-body">${s.body}</div>
     </div>`).join('');
 
-  // FUEL steps
-  document.getElementById('rpt-fuel').innerHTML = t.fuel_steps.map(s => `
-    <div class="rpt-fuel-step">
-      <div class="rpt-fuel-left">
-        <span class="rpt-fuel-num">${s.number}</span>
-        <span class="rpt-fuel-phase">${s.phase}</span>
-      </div>
-      <div>
-        <div class="rpt-fuel-title">${s.title}</div>
-        <div class="rpt-fuel-body">${s.body}</div>
-      </div>
+  // 07 Deal structure
+  document.getElementById('rpt-deal').innerHTML = (t.deal_structure||[]).map((d,i) =>
+    `<tr${i===t.deal_structure.length-1?' style="background:var(--r-paper)!important;font-weight:normal"':''}><td><strong>${d.component}</strong></td><td>${d.target}</td><td>${d.purpose}</td></tr>`).join('');
+
+  // 08 Valuation model
+  document.getElementById('rpt-valuation').innerHTML = (t.valuation_model||[]).map(v =>
+    `<tr><td>${v.revenue}</td><td>${v.ebitda_20}</td><td>${v.ebitda_25}</td><td>${v.at_3x}</td><td>${v.at_5x}</td></tr>`).join('');
+
+  // 09 Value creation levers
+  document.getElementById('rpt-levers').innerHTML = (t.value_creation_levers||[]).map(l => `
+    <div class="rpt-edge-card">
+      <div class="rpt-edge-title">${l.title}</div>
+      <div class="rpt-edge-body">${l.body}</div>
     </div>`).join('');
 
-  // Next moves
-  document.getElementById('rpt-moves').innerHTML = t.next_moves.map(m => `
-    <div class="rpt-move">
-      <div class="rpt-move-num">${m.step}</div>
-      <div>
-        <div class="rpt-move-action">${m.action}</div>
-        <div class="rpt-move-detail">${m.detail}</div>
-      </div>
-    </div>`).join('');
+  // 10 SBA financing
+  document.getElementById('rpt-sba').innerHTML = (t.sba_financing||[]).map(s =>
+    `<tr><td>${s.deal_size}</td><td>${s.down_10}</td><td>${s.seller_note_10}</td><td>${s.sba_80}</td></tr>`).join('');
+
+  // 11 Milestones
+  document.getElementById('rpt-milestones').innerHTML = (t.milestones||[]).map(m =>
+    `<tr><td style="white-space:nowrap;font-weight:600;color:var(--r-gold)">${m.day}</td><td>${m.milestone}</td></tr>`).join('');
+
+  // 12 Next steps
+  document.getElementById('rpt-nextsteps').innerHTML = (t.next_steps||[]).map(n =>
+    `<tr><td style="white-space:nowrap;font-weight:600;color:var(--r-gold)">${n.timeframe}</td><td>${n.action}</td></tr>`).join('');
 
   // Closing
-  document.getElementById('rpt-closing').innerHTML = `<p>${t.closing_insight}</p>`;
+  document.getElementById('rpt-closing').innerHTML = `<p>${t.closing_insight||''}</p>`;
 
-  // Footer name
   document.getElementById('rpt-footer-name').textContent = firstName;
-
   document.getElementById('report-screen').classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
 }
