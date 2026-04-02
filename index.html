@@ -1500,7 +1500,7 @@ function renderReport(profile, t) {
 function showThankYou(profile) {
   const firstName = profile.name.split(' ')[0];
   document.getElementById('ty-name-heading').textContent = firstName + ', your thesis is ready.';
-  document.getElementById('ty-firstname').textContent = firstName + ''s';
+  document.getElementById('ty-firstname').textContent = firstName + "'s";
   document.getElementById('ty-teaser-name').textContent = profile.name;
   document.getElementById('ty-teaser-sub').textContent = profile.profession + ' · ' + profile.location + ' · 2025–2026';
   document.getElementById('thankyou-screen').classList.add('active');
