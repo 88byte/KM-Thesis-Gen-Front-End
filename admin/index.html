@@ -107,6 +107,7 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
     <div class="stat-card"><div class="stat-lbl">Pending</div><div class="stat-val c-yellow" id="sv-pend">—</div><div class="stat-sub">Queue + generating</div></div>
     <div class="stat-card"><div class="stat-lbl">Server Uptime</div><div class="stat-val c-blue" id="sv-up" style="font-size:18px;padding-top:6px">—</div><div class="stat-sub" id="sv-since">—</div></div>
   </div>
+  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap" id="config-pills"></div>
 
   <div class="queue-wrap">
     <div class="queue-lbl">Queue</div>
@@ -211,6 +212,19 @@ function render(d) {
 
   allReports = d.reports || [];
   renderTable(allReports);
+
+  // Config pills
+  const pills = [
+    { label: 'Drive',     ok: d.server.driveConfigured,     okText: 'Drive Connected',     failText: 'Drive Not Set' },
+    { label: 'PDFShift',  ok: d.server.pdfshiftConfigured,  okText: 'PDFShift Active',     failText: 'PDFShift Missing — HTML fallback' },
+    { label: 'Supabase',  ok: d.server.supabaseConfigured,  okText: 'Supabase Persisting', failText: 'Supabase Not Set — data lost on restart' },
+  ];
+  document.getElementById('config-pills').innerHTML = pills.map(p =>
+    `<div style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:2px;border:1px solid ${p.ok?'rgba(76,175,132,0.4)':'rgba(224,85,85,0.4)'};background:${p.ok?'rgba(76,175,132,0.08)':'rgba(224,85,85,0.08)'};font-size:9px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:${p.ok?'var(--green)':'var(--red)'}">
+      <div style="width:6px;height:6px;border-radius:50%;background:currentColor"></div>
+      ${p.ok ? p.okText : p.failText}
+    </div>`
+  ).join('');
 }
 
 function renderTable(reports) {
@@ -233,8 +247,39 @@ function renderTable(reports) {
       : '—';
     const sub = r.submittedAt ? new Date(r.submittedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
     const dur = r.durationMs ? fmtDur(r.durationMs) : r.status==='generating' ? 'Running…' : '—';
-    return `<tr><td class="td-name">${r.name}</td><td class="td-sm">${sub}</td><td>${badge}</td><td class="td-mono">${dur}</td><td>${file}</td><td>${err}</td></tr>`;
+    const hasJson = !!(r.thesisJson || (r.status === 'complete' && r.dbId));
+    const viewBtn = r.dbId
+      ? `<a href="${RAILWAY_URL}/view/${r.dbId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8" title="View web report">View ↗</a>`
+      : '';
+    const regenBtn = r.dbId && r.status === 'complete'
+      ? `<button onclick="regen('${r.dbId}', this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>`
+      : '';
+    return `<tr><td class="td-name">${r.name}</td><td class="td-sm">${sub}</td><td>${badge}</td><td class="td-mono">${dur}</td><td>${file}</td><td>${err}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
   }).join('');
+}
+
+async function regen(id, btn) {
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${RAILWAY_URL}/regenerate/${id}?key=${encodeURIComponent(adminKey)}`, { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      btn.textContent = '✓ Done';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'rgba(76,175,132,0.4)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color=''; btn.style.borderColor=''; btn.disabled=false; }, 3000);
+    } else {
+      btn.textContent = '✗ Error';
+      btn.style.color = 'var(--red)';
+      btn.disabled = false;
+      alert('Regenerate failed: ' + (data.error || 'unknown error'));
+    }
+  } catch(e) {
+    btn.textContent = '✗ Error';
+    btn.disabled = false;
+  }
 }
 
 function filterTable() {
