@@ -86,6 +86,10 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
     <div class="gate-sub">Mission Control</div>
     <div class="gate-lbl">Admin Key</div>
     <input id="ki" class="gate-inp" type="password" placeholder="Enter admin key" onkeydown="if(event.key==='Enter')unlock()"/>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;justify-content:center">
+      <input type="checkbox" id="remember-me" style="accent-color:var(--gold);width:14px;height:14px" checked />
+      <span style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Remember on this device</span>
+    </label>
     <button class="gate-btn" onclick="unlock()">Enter →</button>
     <div class="gate-err" id="ge">Incorrect key — check ADMIN_KEY in Railway Variables.</div>
   </div>
@@ -96,6 +100,7 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
   <div class="topbar-right">
     <div class="server-pill pill-checking" id="spill"><div class="pdot pulse" id="pdot"></div><span id="slbl">Checking…</span></div>
     <button class="btn" id="rbtn" onclick="doRefresh()" disabled>↻ Refresh</button>
+    <button class="btn" id="signout-btn" onclick="signOut()" style="display:none">Sign Out</button>
   </div>
 </div>
 
@@ -115,15 +120,26 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
     <div class="queue-text" id="qtext">—</div>
   </div>
 
+  <!-- Bulk actions bar -->
+  <div id="bulk-bar" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:12px 16px;margin-bottom:8px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);font-weight:700" id="sel-count">0 selected</span>
+    <button onclick="bulkRegen()" style="background:transparent;border:1px solid rgba(91,155,213,0.4);color:var(--blue);font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:7px 14px;border-radius:2px;cursor:pointer">↺ Regenerate Selected</button>
+    <button onclick="clearSelection()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:7px 14px;border-radius:2px;cursor:pointer">✕ Clear</button>
+    <span id="bulk-status" style="font-size:10px;color:var(--muted)"></span>
+  </div>
+
   <div class="table-wrap">
     <div class="table-top">
-      <div class="table-ttl">All Submissions</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="select-all" onchange="toggleSelectAll()" style="accent-color:var(--gold);width:14px;height:14px" title="Select all"/>
+        <div class="table-ttl">All Submissions</div>
+      </div>
       <input class="search" id="srch" placeholder="Search name…" oninput="filterTable()"/>
     </div>
     <table><thead><tr>
-      <th>Attendee</th><th>Submitted</th><th>Status</th><th>Duration</th><th>File</th><th>Error</th>
+      <th style="width:28px"></th><th>Attendee</th><th>Event</th><th>Submitted</th><th>Status</th><th>Duration</th><th>File</th><th>Email</th><th>Actions</th>
     </tr></thead>
-    <tbody id="tbody"><tr><td class="empty-td" colspan="6"><span class="spinner"></span>Loading…</td></tr></tbody>
+    <tbody id="tbody"><tr><td class="empty-td" colspan="9"><span class="spinner"></span>Loading…</td></tr></tbody>
     </table>
   </div>
 
@@ -143,12 +159,48 @@ async function unlock() {
   adminKey = key;
   const data = await fetchStats();
   if (data) {
-    document.getElementById('gate').classList.add('hidden');
-    document.getElementById('rbtn').disabled = false;
-    render(data);
-    checkHealth();
-    timer = setInterval(doRefresh, 30000);
+    if (document.getElementById('remember-me').checked) {
+      localStorage.setItem('km_admin_key', key);
+    } else {
+      localStorage.removeItem('km_admin_key');
+    }
+    showDashboard(data);
   }
+}
+
+function showDashboard(data) {
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('rbtn').disabled = false;
+  render(data);
+  function signOut() {
+  localStorage.removeItem('km_admin_key');
+  adminKey = '';
+  if (timer) clearInterval(timer);
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('rbtn').disabled = true;
+  document.getElementById('signout-btn').style.display = 'none';
+  document.getElementById('ki').value = '';
+  document.getElementById('ge').classList.remove('show');
+}
+
+// Auto-login if saved key exists
+(async () => {
+  const saved = localStorage.getItem('km_admin_key');
+  if (saved) {
+    adminKey = saved;
+    const data = await fetchStats();
+    if (data) {
+      showDashboard(data);
+      return;
+    }
+    // Key no longer valid — clear it
+    localStorage.removeItem('km_admin_key');
+    adminKey = '';
+  }
+  checkHealth();
+})();
+  if (timer) clearInterval(timer);
+  timer = setInterval(doRefresh, 30000);
 }
 
 async function fetchStats() {
@@ -218,6 +270,7 @@ function render(d) {
     { label: 'Drive',     ok: d.server.driveConfigured,     okText: 'Drive Connected',     failText: 'Drive Not Set' },
     { label: 'PDFShift',  ok: d.server.pdfshiftConfigured,  okText: 'PDFShift Active',     failText: 'PDFShift Missing — HTML fallback' },
     { label: 'Supabase',  ok: d.server.supabaseConfigured,  okText: 'Supabase Persisting', failText: 'Supabase Not Set — data lost on restart' },
+    { label: 'Resend',    ok: d.server.resendConfigured,    okText: 'Resend Active',        failText: 'Resend Not Set — email delivery unavailable' },
   ];
   document.getElementById('config-pills').innerHTML = pills.map(p =>
     `<div style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:2px;border:1px solid ${p.ok?'rgba(76,175,132,0.4)':'rgba(224,85,85,0.4)'};background:${p.ok?'rgba(76,175,132,0.08)':'rgba(224,85,85,0.08)'};font-size:9px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:${p.ok?'var(--green)':'var(--red)'}">
@@ -230,7 +283,7 @@ function render(d) {
 function renderTable(reports) {
   const tbody = document.getElementById('tbody');
   if (!reports.length) {
-    tbody.innerHTML='<tr><td class="empty-td" colspan="6">No submissions yet.</td></tr>';
+    tbody.innerHTML='<tr><td class="empty-td" colspan="9">No submissions yet.</td></tr>';
     return;
   }
   tbody.innerHTML = reports.map(r => {
@@ -247,14 +300,24 @@ function renderTable(reports) {
       : '—';
     const sub = r.submittedAt ? new Date(r.submittedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
     const dur = r.durationMs ? fmtDur(r.durationMs) : r.status==='generating' ? 'Running…' : '—';
-    const hasJson = !!(r.thesisJson || (r.status === 'complete' && r.dbId));
-    const viewBtn = r.dbId
-      ? `<a href="${RAILWAY_URL}/view/${r.dbId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8" title="View web report">View ↗</a>`
-      : '';
-    const regenBtn = r.dbId && r.status === 'complete'
-      ? `<button onclick="regen('${r.dbId}', this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>`
-      : '';
-    return `<tr><td class="td-name">${r.name}</td><td class="td-sm">${sub}</td><td>${badge}</td><td class="td-mono">${dur}</td><td>${file}</td><td>${err}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
+    const rowId = r.dbId || '';
+    const chk = rowId ? `<input type="checkbox" class="row-chk" data-id="${rowId}" onchange="onRowCheck()" style="accent-color:var(--gold);width:13px;height:13px;cursor:pointer"/>` : '';
+    const eventTag = r.eventTag || '—';
+    const viewBtn = rowId ? `<a href="${RAILWAY_URL}/view/${rowId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8">View ↗</a>` : '';
+    const regenBtn = rowId && r.status === 'complete' ? `<button onclick="regen('${rowId}',this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>` : '';
+    const sentLabel = r.emailSentAt ? `<span style="color:var(--green);font-size:9px;letter-spacing:0.05em">✓ Sent</span>` : '';
+    const emailCell = rowId && r.status === 'complete'
+      ? `<div style="display:flex;align-items:center;gap:6px;min-width:200px">
+          ${sentLabel}
+          <input type="email" placeholder="${r.email || 'Enter email…'}" id="email-${rowId}"
+            style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:2px;padding:4px 8px;color:var(--text);font-family:Montserrat,sans-serif;font-size:10px;outline:none;width:150px"
+            onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter')sendReport('${rowId}',this)"/>
+          <button onclick="sendReport('${rowId}',document.getElementById('email-${rowId}'))"
+            style="background:linear-gradient(135deg,#8B6914,#C9A84C);border:none;border-radius:2px;padding:4px 10px;color:#000;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap"
+            id="send-btn-${rowId}">Send</button>
+        </div>` : '—';
+    return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td>${badge}</td><td class="td-mono">${dur}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
   }).join('');
 }
 
@@ -282,6 +345,85 @@ async function regen(id, btn) {
   }
 }
 
+// ── Selection ──────────────────────────────────────────────────────────────
+function onRowCheck() {
+  const checked = document.querySelectorAll('.row-chk:checked');
+  const bar = document.getElementById('bulk-bar');
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  document.getElementById('sel-count').textContent = checked.length + ' selected';
+}
+
+function toggleSelectAll() {
+  const all = document.getElementById('select-all').checked;
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = all; });
+  onRowCheck();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
+  document.getElementById('select-all').checked = false;
+  onRowCheck();
+}
+
+// ── Bulk regenerate ─────────────────────────────────────────────────────────
+async function bulkRegen() {
+  const ids = [...document.querySelectorAll('.row-chk:checked')].map(c => c.dataset.id);
+  if (!ids.length) return;
+  const status = document.getElementById('bulk-status');
+  status.textContent = 'Queuing ' + ids.length + ' report(s)…';
+  try {
+    const r = await fetch(`${RAILWAY_URL}/regenerate-bulk?key=${encodeURIComponent(adminKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      status.style.color = 'var(--green)';
+      status.textContent = '✓ ' + data.message + ' — PDFs will appear in Drive as they complete';
+      clearSelection();
+    } else {
+      status.style.color = 'var(--red)';
+      status.textContent = '✗ ' + (data.error || 'Error');
+    }
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '✗ Request failed';
+  }
+}
+
+// ── Send report email ───────────────────────────────────────────────────────
+async function sendReport(id, inputEl) {
+  const email = inputEl.value.trim();
+  if (!email || !email.includes('@')) { inputEl.style.borderColor='var(--red)'; return; }
+  const btn = document.getElementById('send-btn-' + id);
+  const origText = btn.textContent;
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const r = await fetch(`${RAILWAY_URL}/send-report/${id}?key=${encodeURIComponent(adminKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      btn.textContent = '✓ Sent';
+      btn.style.background = 'rgba(76,175,132,0.2)';
+      btn.style.color = 'var(--green)';
+      // Update in-memory so refresh shows sent status
+      const rep = allReports.find(r => r.dbId === id);
+      if (rep) { rep.email = email; rep.emailSentAt = new Date(); }
+    } else {
+      btn.textContent = '✗ Error';
+      btn.style.color = 'var(--red)';
+      btn.disabled = false;
+      alert('Send failed: ' + (data.error || 'unknown error'));
+    }
+  } catch(e) {
+    btn.textContent = origText; btn.disabled = false;
+  }
+}
+
 function filterTable() {
   const q = document.getElementById('srch').value.toLowerCase();
   renderTable(q ? allReports.filter(r=>r.name.toLowerCase().includes(q)) : allReports);
@@ -298,7 +440,33 @@ function fmtDur(ms) {
   return Math.floor(ms/60000)+'m '+Math.floor((ms%60000)/1000)+'s';
 }
 
-checkHealth();
+function signOut() {
+  localStorage.removeItem('km_admin_key');
+  adminKey = '';
+  if (timer) clearInterval(timer);
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('rbtn').disabled = true;
+  document.getElementById('signout-btn').style.display = 'none';
+  document.getElementById('ki').value = '';
+  document.getElementById('ge').classList.remove('show');
+}
+
+// Auto-login if saved key exists
+(async () => {
+  const saved = localStorage.getItem('km_admin_key');
+  if (saved) {
+    adminKey = saved;
+    const data = await fetchStats();
+    if (data) {
+      showDashboard(data);
+      return;
+    }
+    // Key no longer valid — clear it
+    localStorage.removeItem('km_admin_key');
+    adminKey = '';
+  }
+  checkHealth();
+})();
 </script>
 </body>
 </html>
