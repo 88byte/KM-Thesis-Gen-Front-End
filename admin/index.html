@@ -151,7 +151,8 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
 
 <script>
 const RAILWAY_URL = 'https://km-thesis-generator-production.up.railway.app';
-let adminKey = '', allReports = [], timer = null;
+const AVG_GENERATION_MS = 5 * 60 * 1000; // ~5 min average
+let adminKey = '', allReports = [], timer = null, tickTimer = null;
 
 async function unlock() {
   const key = document.getElementById('ki').value.trim();
@@ -242,6 +243,18 @@ async function doRefresh() {
     'Refreshed ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
+// Pause auto-refresh when user is typing in a table email input
+document.addEventListener('focusin', e => {
+  if (e.target.type === 'email' && e.target.closest('#tbody')) {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+});
+document.addEventListener('focusout', e => {
+  if (e.target.type === 'email' && e.target.closest('#tbody')) {
+    if (!timer) timer = setInterval(doRefresh, 30000);
+  }
+});
+
 function render(d) {
   document.getElementById('sv-sub').textContent  = d.totals.submitted;
   document.getElementById('sv-comp').textContent = d.totals.completed;
@@ -280,45 +293,126 @@ function render(d) {
   ).join('');
 }
 
+function rowHtml(r) {
+  const badge = {
+    complete:   '<span class="badge b-complete"><span class="bdot"></span>Complete</span>',
+    failed:     '<span class="badge b-failed"><span class="bdot"></span>Failed</span>',
+    generating: '<span class="badge b-generating"><span class="bdot spin"></span>Generating</span>',
+    queued:     '<span class="badge b-queued"><span class="bdot spin"></span>Queued</span>',
+  }[r.status] || `<span class="badge">${r.status}</span>`;
+  const file = r.fileType==='pdf' ? '<span style="color:var(--green);font-weight:600">PDF</span>'
+             : r.fileType==='html'? '<span style="color:var(--yellow)">HTML</span>' : '—';
+  const err = r.error
+    ? `<span title="${r.error}" style="color:var(--red);cursor:help;font-size:10px">${r.error.slice(0,40)}${r.error.length>40?'…':''}</span>`
+    : '—';
+  const sub = r.submittedAt ? new Date(r.submittedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+  const dur = r.durationMs ? fmtDur(r.durationMs) : '—';
+  const rowId = r.dbId || '';
+  const chk = rowId ? `<input type="checkbox" class="row-chk" data-id="${rowId}" onchange="onRowCheck()" style="accent-color:var(--gold);width:13px;height:13px;cursor:pointer"/>` : '';
+  const eventTag = r.eventTag || '—';
+  const viewBtn = rowId ? `<a href="${RAILWAY_URL}/view/${rowId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8">View ↗</a>` : '';
+  const regenBtn = rowId && r.status === 'complete' ? `<button onclick="regen('${rowId}',this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>` : '';
+  const sentLabel = r.emailSentAt ? `<span style="color:var(--green);font-size:9px;letter-spacing:0.05em">✓ Sent</span>` : '';
+  const emailCell = rowId && r.status === 'complete'
+    ? `<div style="display:flex;align-items:center;gap:6px;min-width:200px">
+        ${sentLabel}
+        <input type="email" placeholder="${r.email || 'Enter email…'}" id="email-${rowId}"
+          style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:2px;padding:4px 8px;color:var(--text);font-family:Montserrat,sans-serif;font-size:10px;outline:none;width:150px"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')sendReport('${rowId}',this)"/>
+        <button onclick="sendReport('${rowId}',document.getElementById('email-${rowId}'))"
+          style="background:linear-gradient(135deg,#8B6914,#C9A84C);border:none;border-radius:2px;padding:4px 10px;color:#000;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap"
+          id="send-btn-${rowId}">Send</button>
+      </div>` : '—';
+  // dur cell gets a special id so tick() can update it without re-render
+  const durId = rowId ? `id="dur-${rowId}"` : '';
+  const durCell = (r.status === 'generating' || r.status === 'queued')
+    ? `<span ${durId} class="td-mono" style="color:var(--yellow)">—</span>`
+    : `<span class="td-mono">${dur}</span>`;
+  return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td id="badge-${rowId}">${badge}</td><td>${durCell}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
+}
+
 function renderTable(reports) {
   const tbody = document.getElementById('tbody');
   if (!reports.length) {
     tbody.innerHTML='<tr><td class="empty-td" colspan="9">No submissions yet.</td></tr>';
+    startTick();
     return;
   }
-  tbody.innerHTML = reports.map(r => {
-    const badge = {
-      complete:   '<span class="badge b-complete"><span class="bdot"></span>Complete</span>',
-      failed:     '<span class="badge b-failed"><span class="bdot"></span>Failed</span>',
-      generating: '<span class="badge b-generating"><span class="bdot spin"></span>Generating</span>',
-      queued:     '<span class="badge b-queued"><span class="bdot spin"></span>Queued</span>',
-    }[r.status] || `<span class="badge">${r.status}</span>`;
-    const file = r.fileType==='pdf' ? '<span style="color:var(--green);font-weight:600">PDF</span>'
-               : r.fileType==='html'? '<span style="color:var(--yellow)">HTML</span>' : '—';
-    const err = r.error
-      ? `<span title="${r.error}" style="color:var(--red);cursor:help;font-size:10px">${r.error.slice(0,40)}${r.error.length>40?'…':''}</span>`
-      : '—';
-    const sub = r.submittedAt ? new Date(r.submittedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-    const dur = r.durationMs ? fmtDur(r.durationMs) : r.status==='generating' ? 'Running…' : '—';
-    const rowId = r.dbId || '';
-    const chk = rowId ? `<input type="checkbox" class="row-chk" data-id="${rowId}" onchange="onRowCheck()" style="accent-color:var(--gold);width:13px;height:13px;cursor:pointer"/>` : '';
-    const eventTag = r.eventTag || '—';
-    const viewBtn = rowId ? `<a href="${RAILWAY_URL}/view/${rowId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8">View ↗</a>` : '';
-    const regenBtn = rowId && r.status === 'complete' ? `<button onclick="regen('${rowId}',this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>` : '';
-    const sentLabel = r.emailSentAt ? `<span style="color:var(--green);font-size:9px;letter-spacing:0.05em">✓ Sent</span>` : '';
-    const emailCell = rowId && r.status === 'complete'
-      ? `<div style="display:flex;align-items:center;gap:6px;min-width:200px">
-          ${sentLabel}
-          <input type="email" placeholder="${r.email || 'Enter email…'}" id="email-${rowId}"
-            style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:2px;padding:4px 8px;color:var(--text);font-family:Montserrat,sans-serif;font-size:10px;outline:none;width:150px"
-            onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"
-            onkeydown="if(event.key==='Enter')sendReport('${rowId}',this)"/>
-          <button onclick="sendReport('${rowId}',document.getElementById('email-${rowId}'))"
-            style="background:linear-gradient(135deg,#8B6914,#C9A84C);border:none;border-radius:2px;padding:4px 10px;color:#000;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap"
-            id="send-btn-${rowId}">Send</button>
-        </div>` : '—';
-    return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td>${badge}</td><td class="td-mono">${dur}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
-  }).join('');
+  // Smart update: only rebuild rows that don't exist yet OR changed status
+  // This prevents destroying focused email inputs on refresh
+  const existingIds = new Set([...tbody.querySelectorAll('tr[id]')].map(r => r.id));
+  const newHtml = [];
+  let needsFullRebuild = false;
+
+  for (const r of reports) {
+    const trId = 'row-' + (r.dbId || '');
+    const existing = document.getElementById(trId);
+    if (!existing) {
+      needsFullRebuild = true;
+      break;
+    }
+    // Check if status badge changed
+    const badgeCell = document.getElementById('badge-' + r.dbId);
+    if (badgeCell) {
+      const newBadge = {
+        complete:   '<span class="badge b-complete"><span class="bdot"></span>Complete</span>',
+        failed:     '<span class="badge b-failed"><span class="bdot"></span>Failed</span>',
+        generating: '<span class="badge b-generating"><span class="bdot spin"></span>Generating</span>',
+        queued:     '<span class="badge b-queued"><span class="bdot spin"></span>Queued</span>',
+      }[r.status] || `<span class="badge">${r.status}</span>`;
+      if (!badgeCell.innerHTML.includes(r.status)) badgeCell.innerHTML = newBadge;
+    }
+  }
+
+  if (needsFullRebuild || tbody.children.length === 0 || tbody.innerHTML.includes('No submissions')) {
+    // Preserve any typed email values before rebuild
+    const savedEmails = {};
+    tbody.querySelectorAll('input[type="email"]').forEach(el => {
+      if (el.value.trim()) savedEmails[el.id] = el.value.trim();
+    });
+    tbody.innerHTML = reports.map(r => rowHtml(r)).join('');
+    // Restore typed emails
+    Object.entries(savedEmails).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && !el.placeholder.includes('@')) el.value = val;
+    });
+  }
+
+  startTick();
+}
+
+// ── Live progress ticker for generating/queued rows ─────────────────────────
+function startTick() {
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(tick, 1000);
+}
+
+function tick() {
+  const now = Date.now();
+  let hasActive = false;
+  for (const r of allReports) {
+    if (r.status !== 'generating' && r.status !== 'queued') continue;
+    hasActive = true;
+    const el = document.getElementById('dur-' + r.dbId);
+    if (!el) continue;
+    if (r.status === 'queued') {
+      el.textContent = 'Waiting in queue…';
+      el.style.color = 'var(--yellow)';
+      continue;
+    }
+    // Generating — show elapsed + estimated remaining
+    const startedMs = r.startedAt ? new Date(r.startedAt).getTime() : (r.submittedAt ? new Date(r.submittedAt).getTime() : now);
+    const elapsed = now - startedMs;
+    const remaining = Math.max(0, AVG_GENERATION_MS - elapsed);
+    const elapsedStr = fmtDur(elapsed);
+    if (remaining > 0) {
+      el.innerHTML = `<span style="color:var(--blue)">${elapsedStr} elapsed</span> <span style="color:var(--muted);font-size:9px">· ~${fmtDur(remaining)} left</span>`;
+    } else {
+      el.innerHTML = `<span style="color:var(--yellow)">${elapsedStr} (finishing…)</span>`;
+    }
+  }
+  if (!hasActive && tickTimer) { clearInterval(tickTimer); tickTimer = null; }
 }
 
 async function regen(id, btn) {
