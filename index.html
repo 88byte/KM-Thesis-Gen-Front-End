@@ -1132,6 +1132,16 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
       <div class="ty-sig">— Kyle Mallien &amp; the Elite Wealth Club Team · kylemallien.com</div>
     </div>
 
+    <!-- REPORT LINK (shown once background generation completes) -->
+    <div id="ty-link-wrap" style="display:none;margin-bottom:32px">
+      <div style="font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px">Your shareable report link</div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div id="ty-link-url" style="font-family:'Montserrat',sans-serif;font-size:12px;color:var(--text);word-break:break-all;flex:1"></div>
+        <button class="btn btn-primary" onclick="copyLink()" id="copy-btn" style="white-space:nowrap;flex-shrink:0">Copy Link</button>
+      </div>
+      <div style="font-family:'Montserrat',sans-serif;font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.05em">This link is permanent — open it on any device, share with Kyle, or revisit at home.</div>
+    </div>
+
     <div class="ty-teaser-label">A preview of what's inside your report</div>
     <div class="ty-teaser">
       <!-- cover -->
@@ -1246,7 +1256,7 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
         <div id="rpt-roadmap"></div>
       </div>
       <div class="rpt-section" id="s-scripts">
-        <div class="rpt-section-header"><span class="rpt-section-num">06</span><span class="rpt-section-title">Outreach Scripts &amp; Templates</span></div>
+        <div class="rpt-section-header"><span class="rpt-section-num">06</span><span class="rpt-section-title">Your Outreach Scripts — Ready to Send</span></div>
         <div id="rpt-scripts"></div>
       </div>
       <div class="rpt-section" id="s-deal">
@@ -1393,9 +1403,12 @@ async function generateThesis() {
     body: JSON.stringify(profile)
   }).then(r => r.json()).then(data => {
     if (data.thesis) {
-      // Silently store thesis so Kyle can optionally pull it up in the session
       window._generatedThesis = { profile, thesis: data.thesis };
       console.log('Thesis ready for', profile.name, '— Drive ID:', data.driveFileId || 'n/a');
+    }
+    if (data.reportUrl) {
+      document.getElementById('ty-link-url').textContent = data.reportUrl;
+      document.getElementById('ty-link-wrap').style.display = 'block';
     }
   }).catch(err => {
     console.error('Background generation error:', err.message);
@@ -1495,6 +1508,15 @@ function renderReport(profile, t) {
   document.getElementById('rpt-footer-name').textContent = firstName;
   document.getElementById('report-screen').classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function copyLink() {
+  const url = document.getElementById('ty-link-url').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Link', 2000);
+  });
 }
 
 function showThankYou(profile) {
