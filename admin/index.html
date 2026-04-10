@@ -172,11 +172,17 @@ async function unlock() {
 function showDashboard(data) {
   document.getElementById('gate').classList.add('hidden');
   document.getElementById('rbtn').disabled = false;
+  document.getElementById('signout-btn').style.display = 'inline-block';
   render(data);
-  function signOut() {
+  checkHealth();
+  if (timer) clearInterval(timer);
+  timer = setInterval(doRefresh, 15000); // auto-refresh every 15 seconds
+}
+
+function signOut() {
   localStorage.removeItem('km_admin_key');
   adminKey = '';
-  if (timer) clearInterval(timer);
+  if (timer) { clearInterval(timer); timer = null; }
   document.getElementById('gate').classList.remove('hidden');
   document.getElementById('rbtn').disabled = true;
   document.getElementById('signout-btn').style.display = 'none';
@@ -190,19 +196,12 @@ function showDashboard(data) {
   if (saved) {
     adminKey = saved;
     const data = await fetchStats();
-    if (data) {
-      showDashboard(data);
-      return;
-    }
-    // Key no longer valid — clear it
+    if (data) { showDashboard(data); return; }
     localStorage.removeItem('km_admin_key');
     adminKey = '';
   }
   checkHealth();
 })();
-  if (timer) clearInterval(timer);
-  timer = setInterval(doRefresh, 30000);
-}
 
 async function fetchStats() {
   try {
@@ -331,8 +330,9 @@ function rowHtml(r) {
       </div>` : '—';
   // dur cell gets a special id so tick() can update it without re-render
   const durId = rowId ? `id="dur-${rowId}"` : '';
+  const startedAtMs = r.startedAt ? new Date(r.startedAt).getTime() : (r.submittedAt ? new Date(r.submittedAt).getTime() : Date.now());
   const durCell = (r.status === 'generating' || r.status === 'queued')
-    ? `<span ${durId} class="td-mono" style="color:var(--yellow)">—</span>`
+    ? `<span ${durId} class="td-mono" data-started="${startedAtMs}" data-status="${r.status}" style="color:var(--yellow)">—</span>`
     : `<span class="td-mono">${dur}</span>`;
   return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td id="badge-${rowId}">${badge}</td><td>${durCell}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}${retryBtn}</td></tr>`;
 }
@@ -368,6 +368,15 @@ function renderTable(reports) {
       }[r.status] || `<span class="badge">${r.status}</span>`;
       if (!badgeCell.innerHTML.includes(r.status)) badgeCell.innerHTML = newBadge;
     }
+    // Also refresh the dur span data attributes so tick stays accurate
+    const durEl = document.getElementById('dur-' + r.dbId);
+    if (durEl) {
+      durEl.setAttribute('data-status', r.status);
+      if (r.startedAt && !durEl.getAttribute('data-started-set')) {
+        durEl.setAttribute('data-started', new Date(r.startedAt).getTime());
+        durEl.setAttribute('data-started-set', '1');
+      }
+    }
   }
 
   if (needsFullRebuild || tbody.children.length === 0 || tbody.innerHTML.includes('No submissions')) {
@@ -395,32 +404,32 @@ function startTick() {
 
 function tick() {
   const now = Date.now();
-  let hasActive = false;
-  for (const r of allReports) {
-    if (r.status !== 'generating' && r.status !== 'queued') continue;
-    hasActive = true;
-    const el = document.getElementById('dur-' + r.dbId);
-    if (!el) continue;
-    if (r.status === 'queued') {
-      el.textContent = 'Waiting in queue…';
-      el.style.color = 'var(--yellow)';
-      continue;
+  // Read directly from DOM data attributes — no dependency on stale allReports
+  const activeEls = document.querySelectorAll('[data-status="generating"], [data-status="queued"]');
+
+  if (activeEls.length === 0) {
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    return;
+  }
+
+  activeEls.forEach(el => {
+    const status = el.getAttribute('data-status');
+    if (status === 'queued') {
+      el.innerHTML = '<span style="color:var(--yellow)">Waiting in queue…</span>';
+      return;
     }
-    // Generating — show elapsed + estimated remaining
-    const startedMs = r.startedAt ? new Date(r.startedAt).getTime() : (r.submittedAt ? new Date(r.submittedAt).getTime() : now);
+    // Generating — calculate from embedded start time
+    const startedMs = parseInt(el.getAttribute('data-started') || '0') || now;
     const elapsed = now - startedMs;
     const remaining = Math.max(0, AVG_GENERATION_MS - elapsed);
-    const elapsedStr = fmtDur(elapsed);
     if (remaining > 30000) {
-      // More than 30s left — show remaining prominently
-      el.innerHTML = `<span style="color:var(--gold);font-weight:600">~${fmtDur(remaining)}</span> <span style="color:var(--muted);font-size:9px">left (${elapsedStr} in)</span>`;
+      el.innerHTML = `<span style="color:var(--gold);font-weight:600">~${fmtDur(remaining)} left</span> <span style="color:var(--muted);font-size:9px">(${fmtDur(elapsed)} in)</span>`;
     } else if (remaining > 0) {
-      el.innerHTML = `<span style="color:var(--yellow);font-weight:600">Almost done…</span> <span style="color:var(--muted);font-size:9px">(${elapsedStr} in)</span>`;
+      el.innerHTML = `<span style="color:var(--yellow);font-weight:600">Almost done…</span> <span style="color:var(--muted);font-size:9px">(${fmtDur(elapsed)} in)</span>`;
     } else {
-      el.innerHTML = `<span style="color:var(--yellow)">${elapsedStr} — finishing up…</span>`;
+      el.innerHTML = `<span style="color:var(--yellow)">${fmtDur(elapsed)} — finishing up…</span>`;
     }
-  }
-  if (!hasActive && tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  });
 }
 
 async function regen(id, btn) {
@@ -538,10 +547,16 @@ async function retryGen(id, btn) {
       btn.style.background = 'rgba(76,175,132,0.15)';
       btn.style.borderColor = 'rgba(76,175,132,0.4)';
       btn.style.color = 'var(--green)';
-      // Update in-memory status so table reflects queued state
+      // Update in-memory status immediately so counts reflect change
       const rep = allReports.find(r => r.dbId === id);
       if (rep) { rep.status = 'queued'; rep.error = null; }
-      setTimeout(() => doRefresh(), 3000);
+      // Update failed/pending counts immediately without waiting for server refresh
+      const failEl = document.getElementById('sv-fail');
+      const pendEl = document.getElementById('sv-pend');
+      if (failEl) failEl.textContent = Math.max(0, parseInt(failEl.textContent) - 1);
+      if (pendEl) pendEl.textContent = parseInt(pendEl.textContent) + 1;
+      // Full refresh after a moment to get accurate server state
+      setTimeout(() => doRefresh(), 4000);
     } else {
       btn.textContent = '✗ Error';
       btn.disabled = false;
