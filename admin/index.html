@@ -137,7 +137,7 @@ td{padding:11px 14px;font-size:11px;color:var(--text);vertical-align:middle}
       <input class="search" id="srch" placeholder="Search name…" oninput="filterTable()"/>
     </div>
     <table><thead><tr>
-      <th style="width:28px"></th><th>Attendee</th><th>Event</th><th>Submitted</th><th>Status</th><th>Duration</th><th>File</th><th>Email</th><th>Actions</th>
+      <th style="width:28px"></th><th>Attendee</th><th>Event</th><th>Submitted</th><th>Status</th><th>ETA / Took</th><th>File</th><th>Email</th><th>Actions</th>
     </tr></thead>
     <tbody id="tbody"><tr><td class="empty-td" colspan="9"><span class="spinner"></span>Loading…</td></tr></tbody>
     </table>
@@ -306,7 +306,9 @@ function rowHtml(r) {
     ? `<span title="${r.error}" style="color:var(--red);cursor:help;font-size:10px">${r.error.slice(0,40)}${r.error.length>40?'…':''}</span>`
     : '—';
   const sub = r.submittedAt ? new Date(r.submittedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-  const dur = r.durationMs ? fmtDur(r.durationMs) : '—';
+  const dur = r.durationMs
+    ? (r.status === 'complete' ? 'took ' + fmtDur(r.durationMs) : fmtDur(r.durationMs))
+    : '—';
   const rowId = r.dbId || '';
   const chk = rowId ? `<input type="checkbox" class="row-chk" data-id="${rowId}" onchange="onRowCheck()" style="accent-color:var(--gold);width:13px;height:13px;cursor:pointer"/>` : '';
   const eventTag = r.eventTag || '—';
@@ -409,10 +411,13 @@ function tick() {
     const elapsed = now - startedMs;
     const remaining = Math.max(0, AVG_GENERATION_MS - elapsed);
     const elapsedStr = fmtDur(elapsed);
-    if (remaining > 0) {
-      el.innerHTML = `<span style="color:var(--blue)">${elapsedStr} elapsed</span> <span style="color:var(--muted);font-size:9px">· ~${fmtDur(remaining)} left</span>`;
+    if (remaining > 30000) {
+      // More than 30s left — show remaining prominently
+      el.innerHTML = `<span style="color:var(--gold);font-weight:600">~${fmtDur(remaining)}</span> <span style="color:var(--muted);font-size:9px">left (${elapsedStr} in)</span>`;
+    } else if (remaining > 0) {
+      el.innerHTML = `<span style="color:var(--yellow);font-weight:600">Almost done…</span> <span style="color:var(--muted);font-size:9px">(${elapsedStr} in)</span>`;
     } else {
-      el.innerHTML = `<span style="color:var(--yellow)">${elapsedStr} (finishing…)</span>`;
+      el.innerHTML = `<span style="color:var(--yellow)">${elapsedStr} — finishing up…</span>`;
     }
   }
   if (!hasActive && tickTimer) { clearInterval(tickTimer); tickTimer = null; }
