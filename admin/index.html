@@ -350,6 +350,9 @@ function renderTable(reports) {
   const newHtml = [];
   let needsFullRebuild = false;
 
+  // Track which rows need a full rebuild due to meaningful status changes
+  const rowsToRebuild = new Set();
+
   for (const r of reports) {
     const trId = 'row-' + (r.dbId || '');
     const existing = document.getElementById(trId);
@@ -357,26 +360,62 @@ function renderTable(reports) {
       needsFullRebuild = true;
       break;
     }
-    // Check if status badge changed
+    // Detect meaningful status transitions that require full row rebuild:
+    // active→complete (need email input + PDF button to appear)
+    // failed→active  (need dur timer, remove retry button)
+    // active→failed  (need retry button, remove timer)
     const badgeCell = document.getElementById('badge-' + r.dbId);
-    if (badgeCell) {
-      const newBadge = {
-        complete:   '<span class="badge b-complete"><span class="bdot"></span>Complete</span>',
-        failed:     '<span class="badge b-failed"><span class="bdot"></span>Failed</span>',
-        generating: '<span class="badge b-generating"><span class="bdot spin"></span>Generating</span>',
-        queued:     '<span class="badge b-queued"><span class="bdot spin"></span>Queued</span>',
-      }[r.status] || `<span class="badge">${r.status}</span>`;
-      if (!badgeCell.innerHTML.includes(r.status)) badgeCell.innerHTML = newBadge;
-    }
-    // Also refresh the dur span data attributes so tick stays accurate
-    const durEl = document.getElementById('dur-' + r.dbId);
-    if (durEl) {
-      durEl.setAttribute('data-status', r.status);
-      if (r.startedAt && !durEl.getAttribute('data-started-set')) {
-        durEl.setAttribute('data-started', new Date(r.startedAt).getTime());
-        durEl.setAttribute('data-started-set', '1');
+    const currentStatus = badgeCell ? (
+      badgeCell.innerHTML.includes('complete')   ? 'complete'   :
+      badgeCell.innerHTML.includes('failed')     ? 'failed'     :
+      badgeCell.innerHTML.includes('generating') ? 'generating' :
+      badgeCell.innerHTML.includes('queued')     ? 'queued'     : 'unknown'
+    ) : 'unknown';
+
+    if (currentStatus !== r.status && currentStatus !== 'unknown') {
+      // Status changed — check if it's a major transition needing full row rebuild
+      const wasActive    = currentStatus === 'queued' || currentStatus === 'generating';
+      const isActive     = r.status === 'queued' || r.status === 'generating';
+      const nowComplete  = r.status === 'complete' || r.status === 'failed';
+      if ((wasActive && nowComplete) || (!wasActive && isActive)) {
+        rowsToRebuild.add(r.dbId);
+        continue;
+      }
+      // Minor badge-only update
+      if (badgeCell) {
+        const newBadge = {
+          complete:   '<span class="badge b-complete"><span class="bdot"></span>Complete</span>',
+          failed:     '<span class="badge b-failed"><span class="bdot"></span>Failed</span>',
+          generating: '<span class="badge b-generating"><span class="bdot spin"></span>Generating</span>',
+          queued:     '<span class="badge b-queued"><span class="bdot spin"></span>Queued</span>',
+        }[r.status] || `<span class="badge">${r.status}</span>`;
+        badgeCell.innerHTML = newBadge;
       }
     }
+    // Update dur cell data-status for tick()
+    const durEl = document.getElementById('dur-' + r.dbId);
+    if (durEl) durEl.setAttribute('data-status', r.status);
+    else if (r.status === 'generating' || r.status === 'queued') {
+      rowsToRebuild.add(r.dbId); // dur cell missing — rebuild row
+    }
+  }
+
+  // Rebuild individual rows that had major status transitions
+  if (!needsFullRebuild && rowsToRebuild.size > 0) {
+    rowsToRebuild.forEach(dbId => {
+      const r = reports.find(rep => rep.dbId === dbId);
+      const row = document.getElementById('row-' + dbId);
+      if (r && row) {
+        // Preserve any typed email value
+        const emailEl = document.getElementById('email-' + dbId);
+        const savedEmail = emailEl ? emailEl.value.trim() : '';
+        row.outerHTML = rowHtml(r);
+        if (savedEmail) {
+          const newEmailEl = document.getElementById('email-' + dbId);
+          if (newEmailEl) newEmailEl.value = savedEmail;
+        }
+      }
+    });
   }
 
   if (needsFullRebuild || tbody.children.length === 0 || tbody.innerHTML.includes('No submissions')) {
@@ -547,16 +586,11 @@ async function retryGen(id, btn) {
       btn.style.background = 'rgba(76,175,132,0.15)';
       btn.style.borderColor = 'rgba(76,175,132,0.4)';
       btn.style.color = 'var(--green)';
-      // Update in-memory status immediately so counts reflect change
+      // Update in-memory status so the row reflects queued state immediately
       const rep = allReports.find(r => r.dbId === id);
       if (rep) { rep.status = 'queued'; rep.error = null; }
-      // Update failed/pending counts immediately without waiting for server refresh
-      const failEl = document.getElementById('sv-fail');
-      const pendEl = document.getElementById('sv-pend');
-      if (failEl) failEl.textContent = Math.max(0, parseInt(failEl.textContent) - 1);
-      if (pendEl) pendEl.textContent = parseInt(pendEl.textContent) + 1;
-      // Full refresh after a moment to get accurate server state
-      setTimeout(() => doRefresh(), 4000);
+      // Let the server refresh handle accurate counts — don't manipulate locally
+      setTimeout(() => doRefresh(), 3000);
     } else {
       btn.textContent = '✗ Error';
       btn.disabled = false;
