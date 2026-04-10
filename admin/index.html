@@ -312,7 +312,10 @@ function rowHtml(r) {
   const eventTag = r.eventTag || '—';
   const viewBtn = rowId ? `<a href="${RAILWAY_URL}/view/${rowId}?key=${encodeURIComponent(adminKey)}" target="_blank" style="color:var(--gold);font-size:10px;text-decoration:none;margin-right:8px;opacity:0.8">View ↗</a>` : '';
   const regenBtn = rowId && r.status === 'complete' ? `<button onclick="regen('${rowId}',this)" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ PDF</button>` : '';
-  const sentLabel = r.emailSentAt ? `<span style="color:var(--green);font-size:9px;letter-spacing:0.05em">✓ Sent</span>` : '';
+
+    const retryBtn = rowId && r.status === 'failed'
+      ? `<button onclick="retryGen('${rowId}',this)" style="background:rgba(224,85,85,0.1);border:1px solid rgba(224,85,85,0.35);color:var(--red);font-family:Montserrat,sans-serif;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;cursor:pointer;margin-left:4px" onmouseover="this.style.background='rgba(224,85,85,0.2)'" onmouseout="this.style.background='rgba(224,85,85,0.1)'">&#8635; Retry</button>`
+      : '';  const sentLabel = r.emailSentAt ? `<span style="color:var(--green);font-size:9px;letter-spacing:0.05em">✓ Sent</span>` : '';
   const emailCell = rowId && r.status === 'complete'
     ? `<div style="display:flex;align-items:center;gap:6px;min-width:200px">
         ${sentLabel}
@@ -329,7 +332,7 @@ function rowHtml(r) {
   const durCell = (r.status === 'generating' || r.status === 'queued')
     ? `<span ${durId} class="td-mono" style="color:var(--yellow)">—</span>`
     : `<span class="td-mono">${dur}</span>`;
-  return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td id="badge-${rowId}">${badge}</td><td>${durCell}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}</td></tr>`;
+  return `<tr id="row-${rowId}"><td>${chk}</td><td class="td-name">${r.name}</td><td class="td-sm" style="white-space:nowrap">${eventTag}</td><td class="td-sm">${sub}</td><td id="badge-${rowId}">${badge}</td><td>${durCell}</td><td>${file}</td><td>${emailCell}</td><td style="white-space:nowrap">${viewBtn}${regenBtn}${retryBtn}</td></tr>`;
 }
 
 function renderTable(reports) {
@@ -515,6 +518,33 @@ async function sendReport(id, inputEl) {
     }
   } catch(e) {
     btn.textContent = origText; btn.disabled = false;
+  }
+}
+
+async function retryGen(id, btn) {
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${RAILWAY_URL}/retry/${id}?key=${encodeURIComponent(adminKey)}`, { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      btn.textContent = '✓ Queued';
+      btn.style.background = 'rgba(76,175,132,0.15)';
+      btn.style.borderColor = 'rgba(76,175,132,0.4)';
+      btn.style.color = 'var(--green)';
+      // Update in-memory status so table reflects queued state
+      const rep = allReports.find(r => r.dbId === id);
+      if (rep) { rep.status = 'queued'; rep.error = null; }
+      setTimeout(() => doRefresh(), 3000);
+    } else {
+      btn.textContent = '✗ Error';
+      btn.disabled = false;
+      alert('Retry failed: ' + (data.error || 'unknown error'));
+    }
+  } catch(e) {
+    btn.textContent = orig;
+    btn.disabled = false;
   }
 }
 
